@@ -167,6 +167,14 @@ makeWorld "PriorityMapIntWld" [''PriorityMapInt]
 
 prop_setGetPriorityMap = genericSetSet initPriorityMapIntWld (undefined :: PriorityMapInt)
 
+-- Tests LowestPriority wrapper for PriorityMap
+newtype  LowestPriorityInt = LowestPriorityInt Int deriving (Eq, Ord, Show, Arbitrary)
+instance Component LowestPriorityInt where type Storage LowestPriorityInt = LowestPriority LowestPriorityInt
+
+makeWorld "LowestPriorityIntWld" [''LowestPriorityInt]
+
+prop_setGetLowestPriority = genericSetSet initLowestPriorityIntWld (undefined :: LowestPriorityInt)
+
 return []
 main = $quickCheckAll
 
