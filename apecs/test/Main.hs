@@ -159,5 +159,14 @@ makeWorld "StackWld" [''StackInt]
 
 prop_setGetStack = genericSetSet initStackWld (undefined :: StackInt)
 
+-- Tests PriorityMap
+newtype PriorityMapInt = PriorityMapInt Int deriving (Eq, Ord, Show, Arbitrary)
+instance Component PriorityMapInt where type Storage PriorityMapInt = PriorityMap PriorityMapInt
+
+makeWorld "PriorityMapIntWld" [''PriorityMapInt]
+
+prop_setGetPriorityMap = genericSetSet initPriorityMapIntWld (undefined :: PriorityMapInt)
+
 return []
 main = $quickCheckAll
+
