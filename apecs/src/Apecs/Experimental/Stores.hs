@@ -17,7 +17,7 @@ This module is experimental, and its API might change between point releases. Us
 {-# LANGUAGE LambdaCase            #-}
 
 module Apecs.Experimental.Stores
-  ( Pushdown(..), Stack(..)
+  ( Pushdown(..), Stack(..), PriorityMap(..), LowestPriority(..)
   ) where
 
 
