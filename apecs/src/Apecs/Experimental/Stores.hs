@@ -39,12 +39,12 @@ type instance Elem (LowestPriority c) = c
 instance (Functor m, ExplInit m (PriorityMap c)) => ExplInit m (LowestPriority c) where
   explInit = LowestPriority <$> explInit
 
-instance (Monad m, ExplGet m (PriorityMap c), Elem (PriorityMap c) ~ PriorityMap c) =>
+instance (Monad m, ExplGet m (PriorityMap c), Elem (PriorityMap c) ~ Elem (LowestPriority c)) =>
   ExplGet m (LowestPriority c) where
     explExists (LowestPriority s) = explExists s 
     explGet (LowestPriority s) = explGet s 
 
-instance (Monad m, ExplGet m (PriorityMap c), ExplSet m (PriorityMap c), Elem (PriorityMap c) ~ PriorityMap c) =>
+instance (Monad m, ExplGet m (PriorityMap c), ExplSet m (PriorityMap c), Elem (PriorityMap c) ~ Elem (LowestPriority c)) =>
   ExplSet m (LowestPriority c) where
     explSet (LowestPriority s) = explSet s
 
@@ -52,15 +52,14 @@ instance (Monad m,
           ExplGet m (PriorityMap c), 
           ExplSet m (PriorityMap c), 
           ExplDestroy m (PriorityMap c), 
-          Elem (PriorityMap c) ~ PriorityMap c) =>
+          Elem (PriorityMap c) ~ Elem (LowestPriority c)) =>
   ExplDestroy m (LowestPriority c) where
     explDestroy (LowestPriority s) = explDestroy s
 
 instance
   ( Monad m
   , ExplMembers m (PriorityMap c)
-  , Elem (PriorityMap c) ~ PriorityMap c
-  ) => ExplMembers m (LowestPriority c) where
+  , Elem (PriorityMap c) ~ Elem (LowestPriority c)) => ExplMembers m (LowestPriority c) where
     explMembers (LowestPriority s) = U.take 1 <$> explMembers s
 
 -- | A priority map based on @Data.HashPSQ@. Members returned least p to larget p. Worst case of O(min(n, Int width)) for most operations.
