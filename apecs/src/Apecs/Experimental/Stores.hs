@@ -14,17 +14,89 @@ This module is experimental, and its API might change between point releases. Us
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE LambdaCase            #-}
 
 module Apecs.Experimental.Stores
   ( Pushdown(..), Stack(..)
   ) where
 
+
+import           Data.IORef
 import Control.Monad.Reader
 import Data.Proxy
 import Data.Semigroup
+import qualified Data.IntPSQ as PSQ
+import qualified Data.Vector.Unboxed         as U
+import           GHC.TypeLits
+import           Data.Typeable (Typeable, typeRep)
 
 import Apecs.Components (MaybeStore (..))
 import Apecs.Core
+
+newtype LowestPriority c = LowestPriority (PriorityMap c)
+type instance Elem (LowestPriority c) = c
+
+instance (Functor m, ExplInit m (PriorityMap c)) => ExplInit m (LowestPriority c) where
+  explInit = LowestPriority <$> explInit
+
+instance (Monad m, ExplGet m (PriorityMap c), Elem (PriorityMap c) ~ PriorityMap c) =>
+  ExplGet m (LowestPriority c) where
+    explExists (LowestPriority s) = explExists s 
+    explGet (LowestPriority s) = explGet s 
+
+instance (Monad m, ExplGet m (PriorityMap c), ExplSet m (PriorityMap c), Elem (PriorityMap c) ~ PriorityMap c) =>
+  ExplSet m (LowestPriority c) where
+    explSet (LowestPriority s) = explSet s
+
+instance (Monad m, 
+          ExplGet m (PriorityMap c), 
+          ExplSet m (PriorityMap c), 
+          ExplDestroy m (PriorityMap c), 
+          Elem (PriorityMap c) ~ PriorityMap c) =>
+  ExplDestroy m (LowestPriority c) where
+    explDestroy (LowestPriority s) = explDestroy s
+
+instance
+  ( Monad m
+  , ExplMembers m (PriorityMap c)
+  , Elem (PriorityMap c) ~ PriorityMap c
+  ) => ExplMembers m (LowestPriority c) where
+    explMembers (LowestPriority s) = U.take 1 <$> explMembers s
+
+-- | A priority map based on @Data.HashPSQ@. Members returned least p to larget p. Worst case of O(min(n, Int width)) for most operations.
+newtype PriorityMap c = PriorityMap (IORef (PSQ.IntPSQ c ()))
+
+type instance Elem (PriorityMap c) = c
+instance MonadIO m => ExplInit m (PriorityMap c) where
+  explInit = liftIO$ PriorityMap <$> newIORef PSQ.empty
+
+instance (MonadIO m, Typeable c, Ord c) => ExplGet m (PriorityMap c) where
+  explExists (PriorityMap ref) ety = liftIO$ PSQ.member ety <$> readIORef ref
+  explGet    (PriorityMap ref) ety = liftIO$ flip fmap (PSQ.lookup ety <$> readIORef ref) $ \case
+    Just (c, _) -> c
+    notFound -> error $ unwords
+      [ "Reading non-existent PriorityMap component"
+      , show (typeRep notFound)
+      , "for entity"
+      , show ety
+      ]
+  {-# INLINE explExists #-}
+  {-# INLINE explGet #-}
+
+instance (Ord c, MonadIO m) => ExplSet m (PriorityMap c) where
+  {-# INLINE explSet #-}
+  explSet (PriorityMap ref) ety x = liftIO$
+    modifyIORef' ref (PSQ.insert ety x ())
+
+instance (Ord c, MonadIO m) => ExplDestroy m (PriorityMap c) where
+  {-# INLINE explDestroy #-}
+  explDestroy (PriorityMap ref) ety = liftIO$
+    readIORef ref >>= writeIORef ref . PSQ.delete ety
+
+instance (MonadIO m) => ExplMembers m (PriorityMap c) where
+  {-# INLINE explMembers #-}
+  explMembers (PriorityMap ref) = liftIO$ U.fromList . PSQ.keys <$> readIORef ref
+
 
 -- | Overrides a store to have history/pushdown semantics.
 --   Setting this store adds a new value on top of the stack.
